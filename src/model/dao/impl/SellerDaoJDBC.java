@@ -1,11 +1,16 @@
 package model.dao.impl;
 
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import db.DB;
 import db.DbException;
@@ -27,6 +32,28 @@ public class SellerDaoJDBC implements SellerDao {
 	@Override
 	public void insert(Seller obj) {
 		
+		SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+		PreparedStatement st = null;
+		try {
+			st = conn.prepareStatement(
+					"INSERT INTO seller "
+					+ "(Name, Email, BirthDate, BaseSalary, DepartmentId)"
+					+ "VALUES (?,?,?,?,?) ", 
+					Statement.RETURN_GENERATED_KEYS);
+					
+			st.setString(1, obj.getName());
+			st.setString(2, obj.getEmail());
+			st.setDate(3, java.sql.Date(obj.getBirthDate()));
+			st.setString(4, obj.getName());
+			st.setString(5, obj.getName());
+			
+		}
+		catch(SQLException e) {
+			throw new DbException(e.getMessage());
+		}
+		finally {
+			DB.closeStatement(st);
+		}
 		
 	}
 
@@ -38,13 +65,14 @@ public class SellerDaoJDBC implements SellerDao {
 
 	@Override
 	public void deleteById(Integer id) {
-		Statement st = null;
+		PreparedStatement st = null;
 		try {
-			st = conn.createStatement();
+			st = conn.prepareStatement("DELETE FROM seller WHERE DepartmentId = ? ");
 			
-			st.executeUpdate("DELETE FROM seller WHERE DepartmentId = ? ");
+			st.setInt(1, id);
 			
-			((PreparedStatement) st).setInt(1, id);
+			int rowsAffected = st.executeUpdate();
+			System.out.println("Done! Rows affected: " + rowsAffected);
 		}
 		catch(SQLException e) {
 			throw new DbException(e.getMessage());
@@ -54,7 +82,7 @@ public class SellerDaoJDBC implements SellerDao {
 		}
 	}
 	
-	// ESSE METODO PROCURA O ID QUE O USUARIO DIGITAR DO VENDEDOR LA DO BANCO DE DADOS 
+	// ESSE METODO PROCURA O ID DO VENDEDOR QUE O USUARIO DIGITAR
 	@Override
 	public Seller findById(Integer id) {
 		PreparedStatement st = null;
@@ -108,6 +136,52 @@ public class SellerDaoJDBC implements SellerDao {
 	public List<Seller> findAll() {
 		
 		return null;
+	}
+	
+	// EXISTE APENAS 1 DEPARTMENTO POR ISSO ELE É ASSINALADO COMO LIST
+	// ESSE METODO PROCURA O DEPARTAMENTO QUE O USUARIO DIGITAR 
+	@Override
+	public List<Seller> findByDepartment(Department department) {
+		PreparedStatement st = null;
+		ResultSet rs = null;
+		try {
+			st = conn.prepareStatement(
+					"SELECT seller.*,department.Name as DepName "
+					+ "FROM seller INNER JOIN department "
+					+ "ON seller.DepartmentId = department.Id "
+					+ "WHERE DepartmentId = ? "
+					+ "ORDER BY Name ");
+			
+			st.setInt(1, department.getId());
+			rs = st.executeQuery();
+			
+			List <Seller> list = new ArrayList<>();
+			
+			//UTILIZANDO A ESTRUTURA DE DADOS MAP PARA CONTROLAR A NÃO-REPETIÇÃO DE INTANCIAÇÃO DO DEPARTAMENTO
+			// POIS SÓ EXISTE UM DEPARTAMENTO E SEM ESSE CONTROLE ELE VAI INSTANCIAR CADA VEZ Q O WHILE RODAR
+			Map<Integer, Department> map = new HashMap<>(); 
+			
+			while (rs.next()) {
+				
+				Department dep = map.get(rs.getInt("DepartmentId")); //ELE VAI PROCURAR O DEPARTAMENTO COM ESSE NOME
+				
+				if (dep == null) { // SE ELE NÃO ENCONTRAR O DEPARTAMENTO COM ESSE NOME, AI SIM PODE SER INSTANCIADO
+					dep = instantiateDepartment(rs);
+					map.put(rs.getInt("DepartmentId"), dep); // SALVA O DEPARTAMENTO DENTRO DO MAP
+				}
+				
+				Seller obj = instantiateSeller(rs, dep); 
+				list.add(obj);
+			}
+			return list;
+		}
+		catch(SQLException e) {
+			throw new DbException(e.getMessage());
+		}
+		finally {
+			DB.closeStatement(st);
+			DB.closeResultSet(rs);
+		}
 	}
 
 }
