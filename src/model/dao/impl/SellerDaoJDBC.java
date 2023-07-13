@@ -31,7 +31,6 @@ public class SellerDaoJDBC implements SellerDao {
 	@Override
 	public void insert(Seller obj) {
 		
-		SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
 		PreparedStatement st = null;
 		try {
 			st = conn.prepareStatement(
