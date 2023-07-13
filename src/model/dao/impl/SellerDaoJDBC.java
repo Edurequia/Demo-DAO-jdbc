@@ -101,12 +101,15 @@ public class SellerDaoJDBC implements SellerDao {
 	public void deleteById(Integer id) {
 		PreparedStatement st = null;
 		try {
-			st = conn.prepareStatement("DELETE FROM seller WHERE DepartmentId = ? ");
+			st = conn.prepareStatement("DELETE FROM seller WHERE Id = ? ");
 			
 			st.setInt(1, id);
 			
-			int rowsAffected = st.executeUpdate();
-			System.out.println("Done! Rows affected: " + rowsAffected);
+			int rows = st.executeUpdate();
+			
+			if (rows == 0) {
+				throw new DbException("Error: There is no such id to delete");
+			}
 		}
 		catch(SQLException e) {
 			throw new DbException(e.getMessage());
